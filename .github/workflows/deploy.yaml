@@ -20,7 +20,9 @@ jobs:
           extensions: mbstring, xml, ctype, json, tokenizer, pdo_mysql
 
       - name: Install Composer dependencies
-        run: composer install --prefer-dist --no-dev --no-progress
+        run: |
+          cd laravel
+          composer install --prefer-dist --no-dev --no-progress
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master

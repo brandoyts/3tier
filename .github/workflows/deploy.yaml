@@ -1,0 +1,38 @@
+name: Deploy laravel to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+          extensions: mbstring, xml, ctype, json, tokenizer, pdo_mysql
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-dev --no-progress
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /var/www/app/laravel
+            git pull origin main
+            composer install --no-dev --no-interaction
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            sudo systemctl restart nginx

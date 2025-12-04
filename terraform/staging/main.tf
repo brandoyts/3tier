@@ -17,13 +17,20 @@ module "vpc" {
   }
 }
 
-resource "aws_security_group" "sg" {
-  name   = "${var.project_name}-${var.environment}-sg"
+resource "aws_security_group" "ec2" {
+  name   = "${var.project_name}-${var.environment}-ec2-sg"
   vpc_id = module.vpc.vpc_id
 
   ingress {
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -35,10 +42,17 @@ resource "aws_security_group" "sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  depends_on = [module.vpc]
+
   tags = {
     Terraform   = "true"
     Environment = var.environment
   }
+}
+
+resource "aws_key_pair" "existing_key_pair" {
+  key_name   = "demo"
+  public_key = file("~/.ssh/demo_rsa.pub")
 }
 
 module "ec2_instance" {
@@ -48,8 +62,9 @@ module "ec2_instance" {
   instance_type               = "t3.small"
   monitoring                  = true
   subnet_id                   = module.vpc.public_subnets[0]
-  vpc_security_group_ids      = [aws_security_group.sg.id]
+  vpc_security_group_ids      = [aws_security_group.ec2.id]
   associate_public_ip_address = true
+  key_name                    = aws_key_pair.existing_key_pair.key_name
   tags = {
     Terraform   = "true"
     Environment = var.environment
@@ -66,7 +81,7 @@ resource "aws_security_group" "db" {
     to_port     = 5432
     protocol    = "tcp"
     security_groups = [
-      aws_security_group.sg.id
+      aws_security_group.ec2.id
     ]
   }
 
@@ -76,6 +91,8 @@ resource "aws_security_group" "db" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  depends_on = [module.vpc]
 
   tags = {
     Terraform   = "true"
